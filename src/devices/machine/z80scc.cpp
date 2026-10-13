@@ -2862,15 +2862,23 @@ void z80scc_channel::txc_w(int state)
 //   ensure this is to write to WR5 to change the character length before writing the data to the transmit
 //   buffer."
 //
-//  Right now we only detect the problem and log an error
+//  A character already in the shift register is left to finish; tra_complete() then loads the next one.
+//  When the shift register is idle, resume sending anything left in the FIFO, e.g. after the transmitter
+//  is enabled again.
 //---------------------------------------------------------------------------------------------------------
 void z80scc_channel::safe_transmit_register_reset()
 {
 	if (!is_transmit_register_empty())
-	{
-		logerror("Attempt to reset transmit shift register while busy detected, please report\n");
-	}
+		return;
+
 	transmit_register_reset();
+	if ((m_wr5 & WR5_TX_ENABLE) && ((m_rr0 & RR0_TX_BUFFER_EMPTY) == 0 || m_tx_fifo_rp != m_tx_fifo_wp))
+	{
+		transmit_register_setup(m_tx_data_fifo[m_tx_fifo_rp]);
+		m_tx_fifo_rp_step();
+		m_rr1 &= ~RR1_ALL_SENT;
+		m_rr0 |= RR0_TX_BUFFER_EMPTY;
+	}
 }
 
 //-------------------------------------------------
