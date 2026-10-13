@@ -278,7 +278,7 @@ enum : uint8_t
 
 enum : uint8_t
 {
-	WR7P_TX_FIFO_EMPTY          = 0x04
+	WR7P_TX_FIFO_EMPTY          = 0x20
 };
 
 enum : uint8_t
@@ -1062,7 +1062,8 @@ void z80scc_channel::device_start()
 	// slot to tell full from empty
 	m_rx_fifo_sz = ((m_uart->m_variant & z80scc_device::SET_ESCC) ? 8 : 3) + 1;
 
-	m_tx_fifo_sz = (m_uart->m_variant & z80scc_device::SET_ESCC) ? 4 : 1;
+	// the ESCC transmit FIFO is 4 deep and also needs a spare slot; the 1 byte NMOS/CMOS buffer is tracked by TBE
+	m_tx_fifo_sz = (m_uart->m_variant & z80scc_device::SET_ESCC) ? 4 + 1 : 1;
 
 	m_rxc   = 0x00;
 	m_txc   = 0x00;
@@ -1261,11 +1262,10 @@ void z80scc_channel::tra_complete()
 
 		if (m_wr1 & WR1_TX_INT_ENABLE && m_tx_int_disarm == 0)
 		{
-			if ((m_uart->m_variant & z80scc_device::SET_ESCC) &&
-				(m_wr7p & WR7P_TX_FIFO_EMPTY)  &&
-				m_tx_fifo_wp == m_tx_fifo_rp)  // ESCC and fifo empty bit set and fifo is completelly empty?
+			if ((m_uart->m_variant & z80scc_device::SET_ESCC) && (m_wr7p & WR7P_TX_FIFO_EMPTY))
 			{
-				m_uart->trigger_interrupt(m_index, INT_TRANSMIT); // Set TXIP bit
+				if (m_tx_fifo_wp == m_tx_fifo_rp) // ESCC in Tx FIFO empty mode only interrupts once the FIFO has drained
+					m_uart->trigger_interrupt(m_index, INT_TRANSMIT); // Set TXIP bit
 			}
 			else if(m_rr0 & RR0_TX_BUFFER_EMPTY)  // Check TBE bit and interrupt if one or more FIFO slots available
 			{
@@ -2636,11 +2636,10 @@ void z80scc_channel::data_write(uint8_t data)
 
 	if (m_wr1 & WR1_TX_INT_ENABLE)
 	{
-		if ((m_uart->m_variant & z80scc_device::SET_ESCC) &&
-			(m_wr7p & WR7P_TX_FIFO_EMPTY)  &&
-			m_tx_fifo_wp == m_tx_fifo_rp)  // ESCC and fifo empty bit set and fifo is completelly empty?
+		if ((m_uart->m_variant & z80scc_device::SET_ESCC) && (m_wr7p & WR7P_TX_FIFO_EMPTY))
 		{
-			m_uart->trigger_interrupt(m_index, INT_TRANSMIT); // Set TXIP bit
+			if (m_tx_fifo_wp == m_tx_fifo_rp) // ESCC in Tx FIFO empty mode only interrupts once the FIFO has drained
+				m_uart->trigger_interrupt(m_index, INT_TRANSMIT); // Set TXIP bit
 		}
 		else if(m_rr0 & RR0_TX_BUFFER_EMPTY)  // Check TBE bit and interrupt if one or more FIFO slots available
 		{

@@ -278,8 +278,8 @@ protected:
 	int m_ri;       // ring indicator latch
 
 	// transmitter state
-	uint8_t m_tx_data_fifo[4];  // data FIFO
-	uint8_t m_tx_error_fifo[4]; // error FIFO
+	uint8_t m_tx_data_fifo[5];  // data FIFO
+	uint8_t m_tx_error_fifo[5]; // error FIFO
 	int m_tx_fifo_rp;           // FIFO read pointer
 	int m_tx_fifo_wp;           // FIFO write pointer
 	int m_tx_fifo_sz;           // FIFO size
