@@ -39,6 +39,7 @@ protected:
 	// device_t implementation
 	virtual void device_start() override ATTR_COLD;
 	virtual void device_reset() override ATTR_COLD;
+	virtual void device_post_load() override;
 	virtual ioport_constructor device_input_ports() const override ATTR_COLD;
 
 private:
@@ -64,6 +65,7 @@ private:
 	void update_count();
 
 	void memcfg_w(offs_t offset, u32 data);
+	void remap_memcfg(offs_t offset);
 
 	required_device<cpu_device> m_maincpu;
 	required_device<eeprom_serial_93cxx_device> m_eeprom;
@@ -89,6 +91,7 @@ private:
 	uint32_t m_arb_cpu_time;
 	uint32_t m_arb_burst_time;
 	uint32_t m_memcfg[2];
+	uint32_t m_memcfg_mapped[2]; // configuration currently installed in the address space
 	uint32_t m_cpu_mem_access_config;
 	uint32_t m_gio_mem_access_config;
 	uint32_t m_cpu_error_addr;
@@ -115,6 +118,7 @@ private:
 	uint32_t m_eeprom_ctrl;
 	uint32_t m_semaphore[16];
 
+	static constexpr u32 RAM_BANK_MAX = 128 << 20; // four 32M SIMMs
 	std::unique_ptr<u8[]> m_ram[4];
 };
 

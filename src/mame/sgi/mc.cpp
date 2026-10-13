@@ -45,6 +45,7 @@ sgi_mc_device::sgi_mc_device(const machine_config &mconfig, const char *tag, dev
 	, m_arb_cpu_time(0)
 	, m_arb_burst_time(0)
 	, m_memcfg{}
+	, m_memcfg_mapped{}
 	, m_cpu_mem_access_config(0)
 	, m_gio_mem_access_config(0)
 	, m_cpu_error_addr(0)
@@ -118,6 +119,18 @@ void sgi_mc_device::device_start()
 	save_item(NAME(m_dma_run));
 	save_item(NAME(m_eeprom_ctrl));
 	save_item(NAME(m_semaphore));
+
+	// The SIMM configuration is only known once settings load, after save state registration
+	// has closed, so allocate every valid bank at the largest SIMM size and map what's installed.
+	ioport_value const valid = ioport("VALID")->field(0x0f)->defvalue(); // set by the driver, not a user setting
+	for (unsigned bank = 0; bank < 4; bank++)
+	{
+		if (BIT(valid, bank))
+		{
+			m_ram[bank] = std::make_unique<u8[]>(RAM_BANK_MAX);
+			save_pointer(NAME(m_ram[bank]), RAM_BANK_MAX, bank);
+		}
+	}
 }
 
 void sgi_mc_device::device_reset()
@@ -161,27 +174,6 @@ void sgi_mc_device::device_reset()
 	memset(m_semaphore, 0, sizeof(uint32_t) * 16);
 
 	m_space = &m_maincpu->space(AS_PROGRAM);
-
-	u16 const simms = m_simms->read();
-
-	// allocate installed memory
-	for (unsigned bank = 0; bank < 4; bank++)
-	{
-		u32 const size = BIT(simms, bank * 4, 3);
-
-		switch (size)
-		{
-		case 0:
-			LOG("ram bank %c empty\n", bank + 'A');
-			m_ram[bank].reset();
-			break;
-		default:
-			LOG("ram bank %c size %dM (%s rank)\n",
-				bank + 'A', 1U << (size + 1), BIT(simms, bank * 4 + 3) ? "dual" : "single");
-			m_ram[bank] = std::make_unique<u8[]>(1U << (size + 21));
-			break;
-		}
-	}
 
 	// assume memory configuration is invalidated by reset
 	memcfg_w(0, 0);
@@ -755,14 +747,27 @@ void sgi_mc_device::memcfg_w(offs_t offset, u32 data)
 {
 	LOGMASKED(LOG_MEMCFG, "memcfg%d 0x%08x\n", offset, data);
 
+	m_memcfg[offset] = data;
+	remap_memcfg(offset);
+}
+
+void sgi_mc_device::device_post_load()
+{
+	// a state load restores the configuration registers, but not the RAM they had mapped
+	remap_memcfg(0);
+	remap_memcfg(1);
+}
+
+void sgi_mc_device::remap_memcfg(offs_t offset)
+{
 	 // remove existing mapping
 	for (unsigned bank = 0; bank < 2; bank++)
 	{
 		// if previous memory configuration was valid, unmap the whole configured range
-		if (BIT(m_memcfg[offset], 29 - bank * 16))
+		if (BIT(m_memcfg_mapped[offset], 29 - bank * 16))
 		{
-			u32 const conf_base = BIT(m_memcfg[offset], 16 - bank * 16, 8) << 22;
-			u32 const conf_size = (BIT(m_memcfg[offset], 24 - bank * 16, 5) + 1) << 22;
+			u32 const conf_base = BIT(m_memcfg_mapped[offset], 16 - bank * 16, 8) << 22;
+			u32 const conf_size = (BIT(m_memcfg_mapped[offset], 24 - bank * 16, 5) + 1) << 22;
 
 			LOGMASKED(LOG_MEMCFG, "unmap bank %c 0x%08x-0x%08x\n",
 				offset * 2 + bank + 'A', conf_base, conf_base + conf_size - 1);
@@ -773,7 +778,7 @@ void sgi_mc_device::memcfg_w(offs_t offset, u32 data)
 		}
 	}
 
-	m_memcfg[offset] = data;
+	m_memcfg_mapped[offset] = m_memcfg[offset];
 
 	u16 const simms = m_simms->read();
 
