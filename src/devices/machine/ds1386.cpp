@@ -110,7 +110,7 @@ void ds1386_device::rtc_clock_updated(int year, int month, int day, int day_of_w
 	else
 		m_hours = time_helper::make_bcd(hour);
 	m_days = time_helper::make_bcd(day_of_week);
-	m_date = time_helper::make_bcd(second);
+	m_date = time_helper::make_bcd(day);
 	m_months_enables = (time_helper::make_bcd(month) & 0x1f) | (m_months_enables & 0xc0);
 	m_years = time_helper::make_bcd(year);
 
