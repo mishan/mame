@@ -45,6 +45,10 @@ void mips3_device::mips3com_update_cycle_counting()
 	/* a Count write has to re-time an armed compare as well */
 	if (m_core->compare_armed || m_compare_int_timer->enabled())
 	{
+		/* a compare that came due while the CPU overran its timeslice fires when it yields, not after Count wraps */
+		if (!m_core->compare_armed && m_compare_int_timer->expire() <= local_time())
+			return;
+
 		uint32_t count = (total_cycles() - m_core->count_zero_time) / 2;
 		uint32_t compare = m_core->cpr[0][COP0_Compare];
 		uint32_t delta = compare - count;
