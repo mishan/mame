@@ -192,5 +192,5 @@ return {
 
 })();
 
-window.jsmame_stream_sink_update = jsmame_web_audio.stream_sink_update;
-window.jsmame_sample_count = jsmame_web_audio.sample_count;
+globalThis.jsmame_stream_sink_update = jsmame_web_audio.stream_sink_update;
+globalThis.jsmame_sample_count = jsmame_web_audio.sample_count;
