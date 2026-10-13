@@ -622,6 +622,9 @@ void mips3_device::device_start()
 	}
 	save_item(NAME(m_core->random_zero_time));
 	save_item(NAME(m_core->lladdr));
+	// the interpreter can stop a timeslice between a branch and its delay slot
+	save_item(NAME(m_nextpc));
+	save_item(NAME(m_delayslot));
 	if (m_dcache_geometry)
 	{
 		const unsigned lines = 1U << (m_dcache_geometry->set_shift + m_dcache_geometry->way_shift);
