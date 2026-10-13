@@ -248,6 +248,13 @@ void drc_frontend_base<Desc>::build_sequence(int start, int end, bool redispatch
 			Desc *nextdesc = (nextdescnum < end) ? m_desc_array[nextdescnum] : nullptr;
 			for (u8 skipnum = 0; skipnum < curdesc->skipslots && nextdesc != nullptr; skipnum++)
 			{
+				// an instruction that couldn't be fetched (compiler page fault) has no length, so we
+				// can't tell what follows it; end the sequence here instead of skipping past nothing
+				if (nextdesc->length == 0)
+				{
+					nextdesc = nullptr;
+					break;
+				}
 				nextdescnum = nextdescnum + nextdesc->length;
 				nextdesc = (nextdescnum < end) ? m_desc_array[nextdescnum] : nullptr;
 			}
