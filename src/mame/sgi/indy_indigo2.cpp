@@ -375,7 +375,8 @@ void ip24_state::ip24(machine_config &config, uint32_t system_clock)
 	m_vino->i2c_stop().set(m_dmsd, FUNC(saa7191_device::i2c_stop_w));
 	m_vino->interrupt_cb().set(m_ioc2, FUNC(ioc2_device::video_int_w));
 
-	DS1386_8K(config, m_rtc, 32768);
+	// IRIX keeps the clock in UTC
+	DS1386_8K(config, m_rtc, 32768).set_use_utc(true);
 }
 
 void ip24_state::indy_5015(machine_config &config)
