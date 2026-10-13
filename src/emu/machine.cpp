@@ -47,6 +47,7 @@
 
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
+#include <emscripten/threading.h>
 #endif
 
 
@@ -1443,7 +1444,9 @@ void running_machine::emscripten_set_running_machine(running_machine *machine)
 	EM_ASM (
 		JSMESS.running = true;
 	);
-	emscripten_set_main_loop(&(emscripten_main_loop), 0, 1);
+	// a Web Worker can block, so it keeps running the normal loop in run()
+	if (emscripten_is_main_browser_thread())
+		emscripten_set_main_loop(&(emscripten_main_loop), 0, 1);
 }
 
 running_machine * running_machine::emscripten_get_running_machine()
